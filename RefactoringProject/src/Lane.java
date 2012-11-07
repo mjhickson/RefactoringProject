@@ -330,6 +330,15 @@ public class Lane extends Thread implements PinsetterObserver {
 			}
 	}
 	
+	
+	/**
+	 * Sets the canThrowAgain to the input boolean
+	 * @param throwAgain, a boolean of whether a person can throw again or not
+	 */
+	public void setCanThrowAgain(boolean throwAgain){
+		canThrowAgain = throwAgain;
+	}
+	
 	/** resetBowlerIterator()
 	 * 
 	 * sets the current bower iterator back to the first bowler
