@@ -1,3 +1,17 @@
+/**
+ * Lane.java
+ * 
+ * This class is representative of a lane and its responsibilities.
+ * It has a pinsetter, and parties can be assigned to it.
+ * The parties then play bowling games on the lane.
+ * When a game is completed, it is responsible for asking the party
+ * if they want to play another game or quit.
+ * If they are done, a score report is emailed to them
+ * and they are offered and option to print their scores.
+ * 
+ * @author - unknown
+ * 
+ */
 
 /* $Id$
  *
