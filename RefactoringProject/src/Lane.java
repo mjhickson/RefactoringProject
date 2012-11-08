@@ -190,94 +190,84 @@ public class Lane extends Thread implements PinsetterObserver {
 	public void run() {
 		
 		while (true) {
-			if (partyAssigned && !gameFinished) {	// we have a party on this lane, 
-								// so next bower can take a throw
 			
+			/*
+			 *  If there is a party assigned to this lane and
+			 *  they are not finished with their game, continue
+			 *  playing.
+			 */
+			if (partyAssigned && !gameFinished) {
+				
+				// If the game is halted, cease execution for 10 milliseconds.
 				while (gameIsHalted) {
 					try {
 						sleep(10);
 					} catch (Exception e) {}
 				}
 
-
-				if (bowlerIterator.hasNext()) {
-					currentThrower = (Bowler)bowlerIterator.next();
-
-					canThrowAgain = true;
-					ball = 0;
-					while (canThrowAgain) {
-						setter.ballThrown();		// simulate the thrower's ball hiting
-						ball++;
-					}
-					
-					if (frameNumber == 9){
-						finalScores[bowlIndex][gameNumber] = cumulScores[bowlIndex][9];
-						try{
-						Date date = new Date();
-						String dateString = "" + date.getHours() + ":" + date.getMinutes() + " " + date.getMonth() + "/" + date.getDay() + "/" + (date.getYear() + 1900);
-						ScoreHistoryFile.addScore(currentThrower.getNick(), dateString, new Integer(cumulScores[bowlIndex][9]).toString());
-						} catch (Exception e) {System.err.println("Exception in addScore. "+ e );} 
-					}
-
-					
-					setter.reset();
-					bowlIndex++;
-					
-				} else {
-					frameNumber++;
-					resetBowlerIterator();
-					bowlIndex = 0;
-					if (frameNumber > 9) {
-						gameFinished = true;
-						gameNumber++;
-					}
-				}
-			} else if (partyAssigned && gameFinished) {
-				EndGamePrompt egp = new EndGamePrompt( ((Bowler) party.getMembers().get(0)).getNickName() + "'s Party" );
-				int result = egp.getResult();
-				egp.distroy();
-				egp = null;
-				
-				
-				System.out.println("result was: " + result);
-				
-				// TODO: send record of scores to control desk
-				if (result == 1) {					// yes, want to play again
-					resetScores();
-					resetBowlerIterator();
-					
-				} else if (result == 2) {// no, dont want to play another game
-					Vector printVector;	
-					EndGameReport egr = new EndGameReport( ((Bowler)party.getMembers().get(0)).getNickName() + "'s Party", party);
-					printVector = egr.getResult();
-					partyAssigned = false;
-					Iterator scoreIt = party.getMembers().iterator();
-					party = null;
-					partyAssigned = false;
-					
-					publish(lanePublish());
-					
-					int myIndex = 0;
-					while (scoreIt.hasNext()){
-						Bowler thisBowler = (Bowler)scoreIt.next();
-						ScoreReport sr = new ScoreReport( thisBowler, finalScores[myIndex++], gameNumber );
-						sr.sendEmail(thisBowler.getEmail());
-						Iterator printIt = printVector.iterator();
-						while (printIt.hasNext()){
-							if (thisBowler.getNick() == (String)printIt.next()){
-								System.out.println("Printing " + thisBowler.getNick());
-								sr.sendPrintout();
-							}
-						}
-
-					}
-				}
+				bowlTurn(); // Bowl a turn.
 			}
-			
 			
 			try {
 				sleep(10);
 			} catch (Exception e) {}
+		}
+	}
+	
+	/** bowlTurn()
+	 * 
+	 * This method simulates one bowler's turn occurring.
+	 * 
+	 */
+	private void bowlTurn(){
+		switchLaneStrategy(); // Switch to the appropriate LaneStrategy.
+		
+		// If we have another bowler, let them throw.
+		if (bowlerIterator.hasNext()) {
+			currentThrower = (Bowler)bowlerIterator.next();
+
+			canThrowAgain = true;
+			ball = 0;
+			while (canThrowAgain) {
+				setter.ballThrown(); // Simulate the ball hitting the Pinsetter.
+				ball++;
+			}
+			
+			/*
+			 * If we are on the tenth frame, add the 
+			 * bowler's score to the score history file.
+			 */
+			if (frameNumber == 9){
+				addBowlerScore();
+			}
+			
+			setter.reset(); // Reset the pins for the next bowler.
+			bowlIndex++;
+			
+		} else { // All bowlers have thrown for this frame.
+			frameNumber++;
+			resetBowlerIterator();
+			bowlIndex = 0;
+			
+			// If we are past the tenth frame, the game is complete. 
+			if (frameNumber > 9) {
+				gameFinished = true;
+				gameNumber++;
+				finishGame();
+			}
+		}
+	}
+	
+	/** switchLaneStrategy()
+	 * 
+	 * Switches to the appropriate lane strategy when called upon.
+	 * 
+	 */
+	private void switchLaneStrategy(){
+		if(frameNumber == 9){ // If we're on the 10th frame, we need a FinalFrameStrategy.
+			laneStrat = new FinalFrameStrategy();
+		} else { // If we're on any other frame, we need a NormalFrameStrategy.
+			laneStrat = new NormalFrameStrategy();
 		}
 	}
 	
@@ -289,7 +279,7 @@ public class Lane extends Thread implements PinsetterObserver {
 	 * @param pse - The PinsetterEvent that has been received.
 	 */
 	public void receivePinsetterEvent(PinsetterEvent pse) {
-		
+		laneStrat.handlePinsetterEvent(pse, this, currentThrower, frameNumber);
 	}
 	
 	/** setCanThrowAgain()
@@ -310,6 +300,23 @@ public class Lane extends Thread implements PinsetterObserver {
 	private void resetBowlerIterator() {
 		bowlerIterator = (party.getMembers()).iterator();
 	}
+	
+	/** addBowlerScore()
+	 * 
+	 * Add a bowler's score to the score history file.
+	 * 
+	 */
+	private void addBowlerScore(){
+		finalScores[bowlIndex][gameNumber] = cumulScores[bowlIndex][9];
+		
+		try{
+			Date date = new Date();
+			String dateString = "" + date.getHours() + ":" + date.getMinutes() + " " + date.getMonth() + "/" + date.getDay() + "/" + (date.getYear() + 1900);
+			ScoreHistoryFile.addScore(currentThrower.getNick(), dateString, new Integer(cumulScores[bowlIndex][9]).toString());
+		} catch (Exception e) {
+			System.err.println("Exception in addScore. "+ e );
+		} 
+	}
 
 	/** resetScores()
 	 * 
@@ -327,10 +334,66 @@ public class Lane extends Thread implements PinsetterObserver {
 			scores.put( bowlIt.next(), toPut );
 		}
 		
-		
-		
 		gameFinished = false;
 		frameNumber = 0;
+	}
+	
+	/** finishGame()
+	 * 
+	 * Finish a game for a party.
+	 * 
+	 */
+	private void finishGame(){
+		// Prompt to see if the party should play another game.
+		EndGamePrompt egp = new EndGamePrompt( ((Bowler) party.getMembers().get(0)).getNickName() + "'s Party" );
+		int result = egp.getResult(); // Get the result of the prompt.
+		egp.distroy(); // Destroy the prompt.
+		egp = null;
+		
+		// TODO: send record of scores to control desk
+		if (result == 1) {	// They chose to play another game.
+			
+			// Reset the scores and bowler iterator so they may start again.
+			resetScores();
+			resetBowlerIterator();
+			
+		} else if (result == 2) { // They chose not to play another game.
+			
+			// Create an end game report for the party.
+			Vector printVector; // This holds the names of the bowlers who want a printed report.
+			EndGameReport egr = new EndGameReport( ((Bowler)party.getMembers().get(0)).getNickName() + "'s Party", party);
+			printVector = egr.getResult();
+			
+			// Get an iterator for the party then get rid of the party.
+			Iterator scoreIt = party.getMembers().iterator();
+			party = null;
+			partyAssigned = false;
+			
+			publish(lanePublish());
+			
+			int myIndex = 0;
+			while (scoreIt.hasNext()){ // For each bowler...
+				
+				// Create the score report.
+				Bowler thisBowler = (Bowler)scoreIt.next();
+				ScoreReport sr = new ScoreReport( thisBowler, finalScores[myIndex++], gameNumber );
+				
+				// Email the score report.
+				sr.sendEmail(thisBowler.getEmail());
+				
+				// Print the score report for each bowler that wants a printed report.
+				Iterator printIt = printVector.iterator();
+				while (printIt.hasNext()){
+					
+					// If the bowler wanted a printed report...
+					if (thisBowler.getNick() == (String)printIt.next()){
+						//Then print it!
+						System.out.println("Printing " + thisBowler.getNick());
+						sr.sendPrintout();
+					}
+				}
+			}
+		}
 	}
 		
 	/** assignParty()
