@@ -9,7 +9,7 @@
  * If they are done, a score report is emailed to them
  * and they are offered and option to print their scores.
  * 
- * @author - unknown
+ * @author - unknown, Maddison Hickson, Michael Yeaple
  * 
  */
 
@@ -473,8 +473,8 @@ public class Lane extends Thread implements PinsetterObserver {
 	 */
 	private int getScore( Bowler Cur, int frame) {
 		int[] curScore;
-		int strikeballs = 0;
 		int totalScore = 0;
+		int strikeballs = 0;
 		curScore = (int[]) scores.get(Cur);
 		for (int i = 0; i != 10; i++){
 			cumulScores[bowlIndex][i] = 0;
@@ -483,100 +483,166 @@ public class Lane extends Thread implements PinsetterObserver {
 		//Iterate through each ball until the current one.
 		for (int i = 0; i != current+2; i++){
 			//Spare:
-			if( i%2 == 1 && curScore[i - 1] + curScore[i] == 10 && i < current - 1 && i < 19){
-				//This ball was a the second of a spare.  
-				//Also, we're not on the current ball.
-				//Add the next ball to the ith one in cumul.
-				cumulScores[bowlIndex][(i/2)] += curScore[i+1] + curScore[i]; 
-				if (i > 1) {
-					//cumulScores[bowlIndex][i/2] += cumulScores[bowlIndex][i/2 -1];
-				}
-			} else if( i < current && i%2 == 0 && curScore[i] == 10  && i < 18){
-				strikeballs = 0;
-				//This ball is the first ball, and was a strike.
-				//If we can get 2 balls after it, good add them to cumul.
-				if (curScore[i+2] != -1) {
-					strikeballs = 1;
-					if(curScore[i+3] != -1) {
-						//Still got em.
-						strikeballs = 2;
-					} else if(curScore[i+4] != -1) {
-						//Ok, got it.
-						strikeballs = 2;
-					}
-				}
+			scoreSpare(curScore,i,current);
+			//Strike:
+			if( i < current && i%2 == 0 && curScore[i] == 10  && i < 18){
+				strikeballs = ballsAfterStrike(curScore,i);
 				if (strikeballs == 2){
-					//Add up the strike.
-					//Add the next two balls to the current cumulscore.
-					cumulScores[bowlIndex][i/2] += 10;
-					if(curScore[i+1] != -1) {
-						cumulScores[bowlIndex][i/2] += curScore[i+1] + cumulScores[bowlIndex][(i/2)-1];
-						if (curScore[i+2] != -1){
-							if( curScore[i+2] != -2){
-								cumulScores[bowlIndex][(i/2)] += curScore[i+2];
-							}
-						} else {
-							if( curScore[i+3] != -2){
-								cumulScores[bowlIndex][(i/2)] += curScore[i+3];
-							}
-						}
-					} else {
-						if ( i/2 > 0 ){
-							cumulScores[bowlIndex][i/2] += curScore[i+2] + cumulScores[bowlIndex][(i/2)-1];
-						} else {
-							cumulScores[bowlIndex][i/2] += curScore[i+2];
-						}
-						if (curScore[i+3] != -1){
-							if( curScore[i+3] != -2){
-								cumulScores[bowlIndex][(i/2)] += curScore[i+3];
-							}
-						} else {
-							cumulScores[bowlIndex][(i/2)] += curScore[i+4];
-						}
-					}
+					scoreStrike(curScore,i);
 				} else {
 					break;
 				}
-			}else { 
-				//We're dealing with a normal throw, add it and be on our way.
-				if( i%2 == 0 && i < 18){
-					if ( i/2 == 0 ) {
-						//First frame, first ball.  Set his cumul score to the first ball
-						if(curScore[i] != -2){	
-							cumulScores[bowlIndex][i/2] += curScore[i];
-						}
-					} else if (i/2 != 9){
-						//add his last frame's cumul to this ball, make it this frame's cumul.
-						if(curScore[i] != -2){
-							cumulScores[bowlIndex][i/2] += cumulScores[bowlIndex][i/2 - 1] + curScore[i];
-						} else {
-							cumulScores[bowlIndex][i/2] += cumulScores[bowlIndex][i/2 - 1];
-						}	
-					}
-				} else if (i < 18){ 
-					if(curScore[i] != -1 && i > 2){
-						if(curScore[i] != -2){
-							cumulScores[bowlIndex][i/2] += curScore[i];
-						}
-					}
-				}
-				if (i/2 == 9){
-					if (i == 18){
-						cumulScores[bowlIndex][9] += cumulScores[bowlIndex][8];	
-					}
-					if(curScore[i] != -2){
-						cumulScores[bowlIndex][9] += curScore[i];
-					}
-				} else if (i/2 == 10) {
-					if(curScore[i] != -2){
-						cumulScores[bowlIndex][9] += curScore[i];
-					}
-				}
+			}else {
+				scoreEvenBall(curScore, i);
+				scoreOddBall(curScore,i);
+				scoreFinalFrame(curScore,i);
 			}
 		}
 		return totalScore;
 	}
 
+	
+	/** scoreSpare()
+	 * 
+	 * Checks whether a certain ball is a spare and if it is this method
+	 * will calculate a score using the next ball if possible.
+	 * 
+	 * @param curScore
+	 * @param ball
+	 */
+	private void scoreSpare(int[] curScore, int ball, int currentBall){
+		if( ball%2 == 1 && curScore[ball - 1] + curScore[ball] == 10 && ball < currentBall - 1 && ball < 19){
+			//This ball was a the second of a spare.  
+			//Also, we're not on the current ball.
+			//Add the next ball to the ith one in cumul.
+			cumulScores[bowlIndex][(ball/2)] += curScore[ball+1] + curScore[ball]; 
+			if (ball > 1) {
+				//cumulScores[bowlIndex][i/2] += cumulScores[bowlIndex][i/2 -1];
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param curScore
+	 * @param ball
+	 * @return
+	 */
+	private int ballsAfterStrike(int[] curScore, int ball){
+		int strikeballs;
+		strikeballs = 0;
+		//This ball is the first ball, and was a strike.
+		//If we can get 2 balls after it, good add them to cumul.
+		if (curScore[ball+2] != -1) {
+			strikeballs = 1;
+			if(curScore[ball+3] != -1) {
+				//Still got em.
+				strikeballs = 2;
+			} else if(curScore[ball+4] != -1) {
+				//Ok, got it.
+				strikeballs = 2;
+			}
+		}
+		return strikeballs;
+	}
+	
+	/**
+	 * 
+	 * @param curScore
+	 * @param ball
+	 */
+	private void scoreStrike(int[] curScore, int ball){
+		//Add up the strike.
+		//Add the next two balls to the current cumulscore.
+		cumulScores[bowlIndex][ball/2] += 10;
+		if(curScore[ball+1] != -1) {
+			cumulScores[bowlIndex][ball/2] += curScore[ball+1] + cumulScores[bowlIndex][(ball/2)-1];
+			if (curScore[ball+2] != -1){
+				if( curScore[ball+2] != -2){
+					cumulScores[bowlIndex][(ball/2)] += curScore[ball+2];
+				}
+			} else {
+				if( curScore[ball+3] != -2){
+					cumulScores[bowlIndex][(ball/2)] += curScore[ball+3];
+				}
+			}
+		} else {
+			if ( ball/2 > 0 ){
+				cumulScores[bowlIndex][ball/2] += curScore[ball+2] + cumulScores[bowlIndex][(ball/2)-1];
+			} else {
+				cumulScores[bowlIndex][ball/2] += curScore[ball+2];
+			}
+			if (curScore[ball+3] != -1){
+				if( curScore[ball+3] != -2){
+					cumulScores[bowlIndex][(ball/2)] += curScore[ball+3];
+				}
+			} else {
+				cumulScores[bowlIndex][(ball/2)] += curScore[ball+4];
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param curScore
+	 * @param ball
+	 */
+	private void scoreEvenBall(int[] curScore, int ball){
+		if( ball%2 == 0 && ball < 18){
+			if( ball%2 == 0 && ball < 18){
+				if ( ball/2 == 0 ) {
+					//First frame, first ball.  Set his cumul score to the first ball
+					if(curScore[ball] != -2){	
+						cumulScores[bowlIndex][ball/2] += curScore[ball];
+					}
+				} else if (ball/2 != 9){
+					//add his last frame's cumul to this ball, make it this frame's cumul.
+					if(curScore[ball] != -2){
+						cumulScores[bowlIndex][ball/2] += cumulScores[bowlIndex][ball/2 - 1] + curScore[ball];
+					} else {
+						cumulScores[bowlIndex][ball/2] += cumulScores[bowlIndex][ball/2 - 1];
+					}	
+				}
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param curScore
+	 * @param ball
+	 */
+	private void scoreOddBall(int[] curScore, int ball){
+		if (ball < 18){ 
+			if(curScore[ball] != -1 && ball > 2){
+				if(curScore[ball] != -2){
+					cumulScores[bowlIndex][ball/2] += curScore[ball];
+				}
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param curScore
+	 * @param ball
+	 */
+	private void scoreFinalFrame(int[] curScore, int ball){
+		if (ball/2 == 9){
+			if (ball == 18){
+				cumulScores[bowlIndex][9] += cumulScores[bowlIndex][8];	
+			}
+			if(curScore[ball] != -2){
+				cumulScores[bowlIndex][9] += curScore[ball];
+			}
+		} else if (ball/2 == 10) {
+			if(curScore[ball] != -2){
+				cumulScores[bowlIndex][9] += curScore[ball];
+			}
+		}
+	}
+	
+	
 	/** isPartyAssigned()
 	 * 
 	 * Checks to see if a party is currently assigned to this lane.
