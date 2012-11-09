@@ -487,6 +487,7 @@ public class Lane extends Thread implements PinsetterObserver {
 			//Strike:
 			if( i < current && i%2 == 0 && curScore[i] == 10  && i < 18){
 				strikeballs = ballsAfterStrike(curScore,i);
+				//checks if two balls after strike have been scored.
 				if (strikeballs == 2){
 					scoreStrike(curScore,i);
 				} else {
@@ -505,10 +506,10 @@ public class Lane extends Thread implements PinsetterObserver {
 	/** scoreSpare()
 	 * 
 	 * Checks whether a certain ball is a spare and if it is this method
-	 * will calculate a score using the next ball if possible.
+	 * will calculate a cumulative score using the next ball if possible
 	 * 
-	 * @param curScore
-	 * @param ball
+	 * @param curScore, an int array of current scores.
+	 * @param ball, the ball that is being checked and possibly scored.
 	 */
 	private void scoreSpare(int[] curScore, int ball, int currentBall){
 		if( ball%2 == 1 && curScore[ball - 1] + curScore[ball] == 10 && ball < currentBall - 1 && ball < 19){
@@ -522,11 +523,13 @@ public class Lane extends Thread implements PinsetterObserver {
 		}
 	}
 	
-	/**
+	/**ballsAfrerStrike()
 	 * 
-	 * @param curScore
-	 * @param ball
-	 * @return
+	 * Calculates how many balls have been thrown after the strike.
+	 * 
+	 * @param curScore, an int array of current scores.
+	 * @param ball, the ball that is being checked and possibly scored.
+	 * @return either 0,1,2 balls after the stike.
 	 */
 	private int ballsAfterStrike(int[] curScore, int ball){
 		int strikeballs;
@@ -536,20 +539,22 @@ public class Lane extends Thread implements PinsetterObserver {
 		if (curScore[ball+2] != -1) {
 			strikeballs = 1;
 			if(curScore[ball+3] != -1) {
-				//Still got em.
+				//Checks if three balls after strike has been scored.
 				strikeballs = 2;
 			} else if(curScore[ball+4] != -1) {
-				//Ok, got it.
+				//Checks if four balls after strike has been scored.
 				strikeballs = 2;
 			}
 		}
 		return strikeballs;
 	}
 	
-	/**
+	/**scoreStrike()
 	 * 
-	 * @param curScore
-	 * @param ball
+	 * Will calculate the cumulative of a stike.
+	 * 
+	 * @param curScore, an int array of current scores.
+	 * @param ball, the ball that is being checked and possibly scored.
 	 */
 	private void scoreStrike(int[] curScore, int ball){
 		//Add up the strike.
@@ -582,10 +587,14 @@ public class Lane extends Thread implements PinsetterObserver {
 		}
 	}
 	
-	/**
+	/**scoreEvenBall()
 	 * 
-	 * @param curScore
-	 * @param ball
+	 * Checks whether a ball is even and calculates the cumulative score 
+	 * for an even ball number. An even ball number is the first throw in
+	 * a frame.
+	 * 
+	 * @param curScore, an int array of current scores.
+	 * @param ball, the ball that is being checked and possibly scored.
 	 */
 	private void scoreEvenBall(int[] curScore, int ball){
 		if( ball%2 == 0 && ball < 18){
@@ -607,10 +616,14 @@ public class Lane extends Thread implements PinsetterObserver {
 		}
 	}
 	
-	/**
+	/**scoreOddBall()
 	 * 
-	 * @param curScore
-	 * @param ball
+	 * Checks whether a ball is odd and calculates the cumulative score
+	 * for an odd ball number. An odd ball number is the second throw in
+	 * a frame
+	 * 
+	 * @param curScore, an int array of current scores.
+	 * @param ball, the ball that is being checked and possibly scored.
 	 */
 	private void scoreOddBall(int[] curScore, int ball){
 		if (ball < 18){ 
@@ -622,20 +635,23 @@ public class Lane extends Thread implements PinsetterObserver {
 		}
 	}
 	
-	/**
+	/**scoreFinalFrame()
 	 * 
-	 * @param curScore
-	 * @param ball
+	 * Checks whether a ball is in the final frame and calculates the cumulative
+	 * score with that ball in the final frame.
+	 * 
+	 * @param curScore, an int array of current scores.
+	 * @param ball, the ball that is being checked and possibly scored.
 	 */
 	private void scoreFinalFrame(int[] curScore, int ball){
-		if (ball/2 == 9){
+		if (ball/2 == 9){			//the last throw of the final frame.
 			if (ball == 18){
 				cumulScores[bowlIndex][9] += cumulScores[bowlIndex][8];	
 			}
 			if(curScore[ball] != -2){
 				cumulScores[bowlIndex][9] += curScore[ball];
 			}
-		} else if (ball/2 == 10) {
+		} else if (ball/2 == 10) {	//the third throw of the final frame if needed.
 			if(curScore[ball] != -2){
 				cumulScores[bowlIndex][9] += curScore[ball];
 			}
